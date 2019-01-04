@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Monitor struct {
@@ -29,11 +33,39 @@ type Stats struct {
 	errResponse  int
 }
 
+// for prom counters
+var (
+	hostName, _ = os.Hostname()
+	totalRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gb_total_requests_count",
+	}, []string{"host"})
+	totalResponseTime = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gb_total_response_time",
+	}, []string{"host"})
+	totalReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gb_total_received_count",
+	}, []string{"host"})
+	totalFailedRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gb_total_failed_requests_count",
+	}, []string{"host"})
+)
+
+// for prom counters
+func init() {
+	prometheus.MustRegister(totalRequests)
+	prometheus.MustRegister(totalResponseTime)
+	prometheus.MustRegister(totalReceived)
+	prometheus.MustRegister(totalFailedRequests)
+}
+
 func NewMonitor(context *Context, collector chan *Record) *Monitor {
 	return &Monitor{context, collector, make(chan *Stats)}
 }
 
 func (m *Monitor) Run() {
+	// for prom client
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":9090", nil)
 
 	// catch interrupt signal
 	userInterrupt := make(chan os.Signal, 1)
@@ -94,9 +126,11 @@ loop:
 
 func updateStats(stats *Stats, record *Record) {
 	stats.totalRequests++
+	totalRequests.With(prometheus.Labels{"host":hostName}).Inc()
 
 	if record.Error != nil {
 		stats.totalFailedReqeusts++
+		totalFailedRequests.With(prometheus.Labels{"host":hostName}).Inc()
 
 		switch record.Error.(type) {
 		case *ConnectError:
@@ -115,7 +149,9 @@ func updateStats(stats *Stats, record *Record) {
 
 	} else {
 		stats.totalResponseTime += record.responseTime
+		totalResponseTime.With(prometheus.Labels{"host":hostName}).Add(record.responseTime.Seconds())
 		stats.totalReceived += record.contentSize
+		totalReceived.With(prometheus.Labels{"host":hostName}).Add(float64(record.contentSize))
 		stats.responseTimeData = append(stats.responseTimeData, record.responseTime)
 	}
 

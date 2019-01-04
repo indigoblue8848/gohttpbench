@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -248,11 +249,19 @@ func NewHTTPRequest(config *Config) (request *http.Request, err error) {
 	return
 }
 
-func CopyHTTPRequest(config *Config, request *http.Request) *http.Request {
+func CopyHTTPRequest(config *Config, request *http.Request, idx int) *http.Request {
 	newRequest := *request
 	if request.Body != nil {
 		newRequest.Body = ioutil.NopCloser(bytes.NewReader(config.bodyContent))
 	}
+
+	// edit path
+	if idx > 0 {
+		newRequest.URL, _ = url.Parse(config.url)
+		newRequest.URL.Path += fmt.Sprintf("%d", idx)
+		newRequest.URL.RawPath += fmt.Sprintf("%d", idx)
+	}
+
 	return &newRequest
 }
 

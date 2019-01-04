@@ -31,7 +31,7 @@ func (b *Benchmark) Run() {
 
 	base, _ := NewHTTPRequest(b.c.config)
 	for i := 0; i < b.c.config.requests; i++ {
-		jobs <- CopyHTTPRequest(b.c.config, base)
+		jobs <- CopyHTTPRequest(b.c.config, base, i)
 	}
 	close(jobs)
 
