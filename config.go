@@ -33,6 +33,8 @@ type Config struct {
 	url  string
 	host string
 	port int
+
+	pport int // port for prom client
 }
 
 func LoadConfig() (config *Config, err error) {
@@ -40,6 +42,9 @@ func LoadConfig() (config *Config, err error) {
 	flag.IntVar(&Verbosity, "v", 0, "How much troubleshooting info to print")
 	flag.IntVar(&GoMaxProcs, "G", runtime.NumCPU(), "Number of CPU")
 	flag.BoolVar(&ContinueOnError, "r", false, "Don't exit when errors")
+
+	// setup prom client port
+	pport := flag.Int("pp", 9090, "port for prom client")
 
 	request := flag.Int("n", 1, "Number of requests to perform")
 	concurrency := flag.Int("c", 1, "Number of multiple requests to make")
@@ -87,6 +92,7 @@ func LoadConfig() (config *Config, err error) {
 
 	// build configuration
 	config = &Config{}
+	config.pport = *pport
 	config.requests = *request
 	config.concurrency = *concurrency
 

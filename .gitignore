@@ -5,3 +5,5 @@ raw/
 *.pprof
 profilingtool.go
 gb
+.idea/
+gohttpbench

@@ -38,16 +38,16 @@ var (
 	hostName, _ = os.Hostname()
 	totalRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "gb_total_requests_count",
-	}, []string{"host"})
+	}, []string{"host", "port", "url"})
 	totalResponseTime = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "gb_total_response_time",
-	}, []string{"host"})
+	}, []string{"host", "port", "url"})
 	totalReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "gb_total_received_count",
-	}, []string{"host"})
+	}, []string{"host", "port", "url"})
 	totalFailedRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "gb_total_failed_requests_count",
-	}, []string{"host"})
+	}, []string{"host", "port", "url"})
 )
 
 // for prom counters
@@ -65,7 +65,7 @@ func NewMonitor(context *Context, collector chan *Record) *Monitor {
 func (m *Monitor) Run() {
 	// for prom client
 	http.Handle("/metrics", promhttp.Handler())
-	go http.ListenAndServe(":9090", nil)
+	go http.ListenAndServe(fmt.Sprintf(":%d", m.c.config.pport), nil)
 
 	// catch interrupt signal
 	userInterrupt := make(chan os.Signal, 1)
@@ -93,7 +93,7 @@ loop:
 		select {
 		case record := <-m.collector:
 
-			updateStats(stats, record)
+			updateStats(stats, record, m.c.config.url, fmt.Sprintf("%d", m.c.config.pport))
 
 			if record.Error != nil && !ContinueOnError {
 				break loop
@@ -124,13 +124,13 @@ loop:
 	m.output <- stats
 }
 
-func updateStats(stats *Stats, record *Record) {
+func updateStats(stats *Stats, record *Record, url string, port string) {
 	stats.totalRequests++
-	totalRequests.With(prometheus.Labels{"host":hostName}).Inc()
+	totalRequests.With(prometheus.Labels{"host":hostName, "port":port, "url":url}).Inc()
 
 	if record.Error != nil {
 		stats.totalFailedReqeusts++
-		totalFailedRequests.With(prometheus.Labels{"host":hostName}).Inc()
+		totalFailedRequests.With(prometheus.Labels{"host":hostName, "port":port, "url":url}).Inc()
 
 		switch record.Error.(type) {
 		case *ConnectError:
@@ -149,9 +149,9 @@ func updateStats(stats *Stats, record *Record) {
 
 	} else {
 		stats.totalResponseTime += record.responseTime
-		totalResponseTime.With(prometheus.Labels{"host":hostName}).Add(record.responseTime.Seconds())
+		totalResponseTime.With(prometheus.Labels{"host":hostName, "port":port, "url":url}).Add(record.responseTime.Seconds())
 		stats.totalReceived += record.contentSize
-		totalReceived.With(prometheus.Labels{"host":hostName}).Add(float64(record.contentSize))
+		totalReceived.With(prometheus.Labels{"host":hostName, "port":port, "url":url}).Add(float64(record.contentSize))
 		stats.responseTimeData = append(stats.responseTimeData, record.responseTime)
 	}
 
