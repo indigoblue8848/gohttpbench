@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -31,7 +32,7 @@ func (b *Benchmark) Run() {
 
 	base, _ := NewHTTPRequest(b.c.config)
 	for i := 0; i < b.c.config.requests; i++ {
-		jobs <- CopyHTTPRequest(b.c.config, base, i)
+		jobs <- CopyHTTPRequest(b.c.config, base, rand.Intn(b.c.config.requests))
 	}
 	close(jobs)
 

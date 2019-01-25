@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -56,6 +57,12 @@ func init() {
 	prometheus.MustRegister(totalResponseTime)
 	prometheus.MustRegister(totalReceived)
 	prometheus.MustRegister(totalFailedRequests)
+
+	f, err := os.OpenFile("./gb_log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	log.SetOutput(f)
 }
 
 func NewMonitor(context *Context, collector chan *Record) *Monitor {
@@ -146,6 +153,8 @@ func updateStats(stats *Stats, record *Record, url string, port string) {
 		default:
 			stats.errException++
 		}
+
+		log.Printf("%s\n", record.Error.Error())
 
 	} else {
 		stats.totalResponseTime += record.responseTime
